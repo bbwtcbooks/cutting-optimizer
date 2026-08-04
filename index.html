@@ -1,0 +1,1941 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧多規格板材二維雙向裁切排樣系統</title>
+    <!-- 引入 Tailwind CSS 確保極佳的 UI 設計體驗 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 網頁自訂樣式：斜紋廢料背景與動態平滑過渡 */
+        .waste-pattern {
+            background-color: #1e293b;
+            background-image: repeating-linear-gradient(45deg, #0f172a 25%, transparent 25%, transparent 75%, #0f172a 75%, #0f172a), 
+                              repeating-linear-gradient(45deg, #0f172a 25%, #1e293b 25%, #1e293b 75%, #0f172a 75%, #0f172a);
+            background-size: 16px 16px;
+            background-position: 0 0, 8px 8px;
+        }
+        .wood-board {
+            box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.2);
+        }
+        /* 拼版互動懸停特效 */
+        .piece-rect {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .piece-rect:hover {
+            filter: brightness(1.25) drop-shadow(0 4px 8px rgba(255, 255, 255, 0.15));
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+
+    <header class="border-b border-slate-800 bg-slate-950 px-6 py-4 sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-cyan-500 text-slate-950 p-2 rounded-lg font-bold text-xl shadow-lg shadow-cyan-500/20">
+                    📐
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                        智慧多規格板材裁切排樣系統 <span class="text-xs bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded border border-cyan-500/20">v4.2.0-PerfectGrid</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">嚴格十字貫穿通切、物理零干涉匹配、自動防切碎排樣</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 text-xs bg-slate-800 px-3 py-1.5 rounded-md border border-slate-700">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-slate-300">雙向一刀到底物理切割引擎已就緒</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- 左側：輸入控制面板 (5 Columns) -->
+        <section class="lg:col-span-5 flex flex-col gap-6">
+            <!-- 參數設定卡片 -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 shadow-xl">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2 border-b border-slate-800 pb-2">
+                    <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    1. 母板與填充設定
+                </h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-sm font-medium text-slate-300">母板尺寸 (大原板)</label>
+                            <button onclick="swapBoardDimensions()" class="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                                ⇄ 旋轉母板
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="relative">
+                                <span class="absolute left-3 top-2.5 text-xs text-slate-500">寬 (W)</span>
+                                <input type="number" id="boardW" value="400" min="1" class="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-12 pr-8 text-white focus:outline-none focus:border-cyan-500 transition-colors">
+                                <span class="absolute right-2 top-2.5 text-xs text-slate-400">mm</span>
+                            </div>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2.5 text-xs text-slate-500">高 (H)</span>
+                                <input type="number" id="boardH" value="200" min="1" class="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-12 pr-8 text-white focus:outline-none focus:border-cyan-500 transition-colors">
+                                <span class="absolute right-2 top-2.5 text-xs text-slate-400">mm</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 鋸齒損耗 -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">
+                            刀口/鋸片損耗寬度 (Kerf Loss)
+                        </label>
+                        <div class="relative">
+                            <input type="number" id="kerf" value="1.5" min="0" step="0.1" class="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-cyan-500 transition-colors">
+                            <span class="absolute right-3 top-2.5 text-xs text-slate-400">mm</span>
+                        </div>
+                    </div>
+
+                    <!-- 新增：填充模式切換，完美解決「空大片廢料」或「需求精準控制」的痛點 -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">
+                            排樣填充模式 (Nesting Mode)
+                        </label>
+                        <select id="fillMode" onchange="triggerCalculation()" class="w-full bg-slate-900 border border-slate-700 rounded-lg py-2.5 px-3 text-white focus:outline-none focus:border-cyan-500 transition-colors text-sm">
+                            <option value="demand">依需求數量限制 (Respect Demands)</option>
+                            <option value="maximize" selected>極限填充 (不限數量塞滿) ★極致產出</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col gap-4">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                        2. 子料清單管理 (多尺寸)
+                    </h2>
+                    <button onclick="addNewItemRow()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-2.5 py-1.5 rounded transition-all active:scale-95">
+                        ＋ 新增子料
+                    </button>
+                </div>
+
+                <!-- 子料動態列表表格 -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-slate-500">
+                                <th class="py-2 pl-1">標記</th>
+                                <th class="py-2">子料名稱</th>
+                                <th class="py-2 w-20">寬 (w)</th>
+                                <th class="py-2 w-20">高 (h)</th>
+                                <th class="py-2 w-20">需求數</th>
+                                <th class="py-2 text-center">刪除</th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-tbody" class="divide-y divide-slate-850">
+                            <!-- JS 動態生成子料行 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 pt-2">
+                    <button onclick="triggerCalculation()" class="col-span-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-bold py-2.5 px-4 rounded-lg shadow-lg shadow-cyan-500/20 active:scale-95 transition-all text-center">
+                        智慧混排運算 ⚡
+                    </button>
+                    <button onclick="resetInputsToDemo()" class="bg-slate-850 hover:bg-slate-800 border border-slate-700 font-medium py-2.5 px-3 rounded-lg active:scale-95 transition-all text-sm">
+                        重置示範
+                    </button>
+                </div>
+            </div>
+
+            <!-- 系統狀態提示 -->
+            <div id="system-toast" class="hidden bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 text-xs p-3.5 rounded-lg flex items-start gap-2.5 shadow-lg">
+                <span class="mt-0.5 text-base">✓</span>
+                <div>
+                    <span class="font-bold">運算與混排解析成功！</span>
+                    <p class="text-[10px] text-emerald-500 mt-0.5">嚴格 1-Stage Guillotine 純十字網格方案已生成（橫向、縱向切線皆一刀貫穿整塊母板）。</p>
+                </div>
+            </div>
+
+            <div id="error-toast" class="hidden bg-rose-950/80 border border-rose-500/30 text-rose-400 text-xs p-3.5 rounded-lg flex items-start gap-2.5 shadow-lg">
+                <span class="mt-0.5 text-base">⚠️</span>
+                <div>
+                    <span class="font-bold">輸入參數錯誤！</span>
+                    <p id="error-toast-msg" class="text-[10px] text-rose-500 mt-0.5">請確保子料尺寸不超過母板，且需求數大於 0。</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="lg:col-span-7 flex flex-col gap-6">
+            
+            <!-- 方案切換與關鍵成效看板 -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 shadow-xl">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <span class="text-xs text-indigo-400 font-bold uppercase tracking-wider">最佳化十字排版方案 (1-3)</span>
+                        <p class="text-xs text-slate-400 mt-0.5">保證「橫向、直向」全部一刀貫穿到底，絕無中間斷切與工件切碎</p>
+                    </div>
+                    <div class="flex gap-2 w-full md:w-auto" id="solution-tabs-container">
+                        <!-- 動態切換標籤 -->
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg text-center">
+                        <span class="text-[10px] text-slate-400 uppercase font-medium">總裁出工件</span>
+                        <div class="text-2xl font-black text-white mt-1" id="stat-total-pieces">0</div>
+                        <span class="text-[10px] text-indigo-400 font-bold">已剪切總件數</span>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg text-center">
+                        <span class="text-[10px] text-slate-400 uppercase font-medium">母板利用率</span>
+                        <div class="text-2xl font-black text-emerald-400 mt-1" id="stat-efficiency">0%</div>
+                        <span class="text-[10px] text-slate-500" id="stat-area-details">0 / 0 m²</span>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg text-center">
+                        <span class="text-[10px] text-slate-400 uppercase font-medium">鋸切損耗 (Kerf)</span>
+                        <div class="text-2xl font-black text-amber-500 mt-1" id="stat-loss">0%</div>
+                        <span class="text-[10px] text-slate-500" id="stat-loss-details">0 mm² 鋸屑</span>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg text-center">
+                        <span class="text-[10px] text-slate-400 uppercase font-medium">餘料佔比</span>
+                        <div class="text-2xl font-black text-slate-400 mt-1" id="stat-waste">0%</div>
+                        <span class="text-[10px] text-slate-500">剩餘斜紋廢料</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 shadow-xl">
+                <h3 class="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                    本方案子料裁切達成率 (Production Status Breakdown)
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="production-breakdown-container">
+                    <!-- 動態渲染每個規格的進度條 -->
+                </div>
+            </div>
+
+            <!-- 主繪圖區：CAD 畫布 -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-cyan-400"></span>
+                        <h3 class="font-bold text-white text-base" id="active-solution-name">方案畫布載入中...</h3>
+                    </div>
+                    <div class="text-xs text-slate-400 flex items-center gap-2">
+                        <span class="flex items-center gap-1">
+                            <span class="inline-block w-2.5 h-2.5 bg-red-500/20 border border-red-500/50 rounded"></span> 橫向一刀到底
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <span class="inline-block w-2.5 h-2.5 bg-orange-500/20 border border-orange-500/50 rounded"></span> 縱向一刀到底
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 階梯式工藝刀數與出貨統計 -->
+                <div class="grid grid-cols-3 gap-3 bg-slate-900/80 border border-slate-800 rounded-lg p-3 text-xs shadow-inner">
+                    <div class="flex items-center gap-3 px-2">
+                        <div class="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-lg font-bold">⫴</div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 block font-medium">橫向通刀數 (一刀到底)</span>
+                            <span class="text-sm font-black text-white" id="stat-h-cuts">0 刀</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 px-2 border-l border-slate-800">
+                        <div class="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400 text-lg font-bold">≓</div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 block font-medium">縱向通刀數 (一刀到底)</span>
+                            <span class="text-sm font-black text-white" id="stat-v-cuts">0 刀</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3 px-2 border-l border-slate-800">
+                        <div class="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-lg font-bold shrink-0">⧉</div>
+                        <div class="flex-1 min-w-0">
+                            <span class="text-[10px] text-slate-400 block font-medium">總裁出件數</span>
+                            <div class="text-sm font-black text-emerald-400" id="stat-prod-qty">0 個</div>
+                            <div class="mt-1 space-y-0.5 text-[10px] leading-tight" id="stat-prod-breakdown"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CAD 渲染容器 -->
+                <div class="relative bg-slate-900 rounded-lg p-6 border border-slate-800 flex items-center justify-center overflow-hidden min-h-[380px] wood-board" id="canvas-container">
+                    <div id="svg-canvas-wrapper" class="w-full max-w-4xl flex items-center justify-center">
+                        <!-- SVG 畫布將透過 JS 動態產生 -->
+                    </div>
+                    
+                    <!-- 浮動式 CAD 視角控制按鈕欄 -->
+                    <div class="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
+                        <button onclick="adjustZoom(1.2)" class="bg-slate-950/80 hover:bg-slate-800 text-slate-200 border border-slate-700 w-10 h-10 rounded-lg flex items-center justify-center text-lg shadow-lg active:scale-95 transition-all" title="放大">＋</button>
+                        <button onclick="adjustZoom(0.85)" class="bg-slate-950/80 hover:bg-slate-800 text-slate-200 border border-slate-700 w-10 h-10 rounded-lg flex items-center justify-center text-lg shadow-lg active:scale-95 transition-all" title="縮小">－</button>
+                        <button onclick="resetZoomAndPan()" class="bg-slate-950/80 hover:bg-slate-800 text-slate-200 border border-slate-700 w-10 h-10 rounded-lg flex items-center justify-center text-sm shadow-lg active:scale-95 transition-all" title="重置視角">⟲</button>
+                    </div>
+
+                    <!-- 切割資訊懸停提示 (Tooltip) -->
+                    <div id="svg-tooltip" class="absolute bg-slate-950/95 text-slate-100 border border-slate-700 rounded px-2.5 py-1.5 text-xs shadow-xl pointer-events-none hidden flex flex-col gap-0.5 z-20">
+                        <span class="font-bold text-cyan-400" id="tip-id">工件 #0</span>
+                        <span id="tip-coords">位置: (0, 0)</span>
+                        <span id="tip-dim">尺寸: 0 × 0 mm</span>
+                    </div>
+                </div>
+
+                <!-- 排版方案詳情與切線指令 -->
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">排樣策略與 Guillotine 加工順序說明</h4>
+                    <p class="text-sm text-slate-300 mb-4" id="active-solution-desc">--</p>
+                    
+                    <div class="border-t border-slate-800 pt-3 flex flex-wrap justify-between items-center gap-3">
+                        <div class="text-xs text-slate-400 leading-relaxed">
+                            <strong>🛠️ 現場開料師傅操作順序：</strong><br>
+                            1. 本方案採 **嚴格 1-Stage 純十字 Guillotine**：每橫切從左貫穿到右、每縱切從上貫穿到下，且每個網格儲存格剛好等於一個工件，零陷阱廢料。<br>
+                            2. 先沿 <span class="text-red-400 font-bold">紅色橫切線 (✂️ H)</span> 橫向一刀直接切到底，再沿 <span class="text-orange-400 font-bold">橘色縱切線 (✂️ V)</span> 縱向一刀直接切到底，所有鋸路皆完全貫通。
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="exportLayoutToPNG()" class="text-xs bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-3 py-1.5 rounded border border-cyan-400 hover:border-cyan-300 transition-all shadow-md shadow-cyan-500/10 flex items-center gap-1 active:scale-95">
+                                📥 匯出整合型高清 PNG
+                            </button>
+                            <button onclick="copyLayoutToClipboard()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded border border-slate-700 hover:border-slate-600 transition-colors">
+                                📋 複製裁切座標 (JSON)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // 設定系統預設顏色集合 (供多規格工件顯色)
+        const PRESET_COLORS = [
+            { bg: '#0891b2', stroke: '#155e75', text: '#e0f2fe', label: 'Cyan', hex: '#0891b2' },
+            { bg: '#4f46e5', stroke: '#3730a3', text: '#e0e7ff', label: 'Indigo', hex: '#4f46e5' },
+            { bg: '#059669', stroke: '#065f46', text: '#d1fae5', label: 'Emerald', hex: '#059669' },
+            { bg: '#d97706', stroke: '#92400e', text: '#fef3c7', label: 'Amber', hex: '#d97706' },
+            { bg: '#db2777', stroke: '#9d174d', text: '#fce7f3', label: 'Rose', hex: '#db2777' },
+            { bg: '#7c3aed', stroke: '#5b21b6', text: '#f3e8ff', label: 'Violet', hex: '#7c3aed' }
+        ];
+
+        // 預設子料清單 (依據使用者裁切規格與圖紙完美對齊，板件B修改為60x10)
+        let customItems = [
+            { id: 1, name: '板件A (長條)', w: 10, h: 20, qty: 100, color: PRESET_COLORS[0] },
+            { id: 2, name: '板件B (中塊)', w: 60, h: 10, qty: 100, color: PRESET_COLORS[1] }
+        ];
+
+        let calculatedSolutions = [];
+        let activeSolutionIndex = 0;
+
+        // 全域 CAD 視界平移縮放變量
+        let svgScale = 1;
+        let svgTranslateX = 0;
+        let svgTranslateY = 0;
+
+        // 當頁面載入完成後執行
+        window.onload = function() {
+            renderItemTable();
+            triggerCalculation();
+        }
+
+        // 動態渲染左側子料清單 Table
+        function renderItemTable() {
+            const tbody = document.getElementById('items-tbody');
+            tbody.innerHTML = "";
+
+            customItems.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-900 transition-colors";
+                tr.innerHTML = `
+                    <td class="py-2.5 pl-1 flex items-center gap-1.5">
+                        <span class="w-3.5 h-3.5 rounded-full inline-block" style="background-color: ${item.color.bg};"></span>
+                    </td>
+                    <td class="py-2">
+                        <input type="text" value="${item.name}" onchange="updateItemField(${item.id}, 'name', this.value)" class="bg-transparent border border-transparent hover:border-slate-700 focus:border-cyan-500 focus:bg-slate-900 rounded py-0.5 px-1 w-full text-white">
+                    </td>
+                    <td class="py-2">
+                        <input type="number" value="${item.w}" onchange="updateItemField(${item.id}, 'w', this.value)" class="bg-slate-900 border border-slate-700 rounded py-0.5 px-1.5 w-16 text-white text-center">
+                    </td>
+                    <td class="py-2">
+                        <input type="number" value="${item.h}" onchange="updateItemField(${item.id}, 'h', this.value)" class="bg-slate-900 border border-slate-700 rounded py-0.5 px-1.5 w-16 text-white text-center">
+                    </td>
+                    <td class="py-2">
+                        <input type="number" value="${item.qty}" onchange="updateItemField(${item.id}, 'qty', this.value)" class="bg-slate-900 border border-slate-700 rounded py-0.5 px-1.5 w-14 text-white text-center">
+                    </td>
+                    <td class="py-2 text-center">
+                        <button onclick="removeItemRow(${item.id})" class="text-rose-500 hover:text-rose-400 text-sm font-semibold">✕</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 新增子料規格
+        function addNewItemRow() {
+            if (customItems.length >= 6) {
+                alert("考慮到最佳化排樣效能與色彩區分度，上限為 6 種規格！");
+                return;
+            }
+            const newId = customItems.length > 0 ? Math.max(...customItems.map(i => i.id)) + 1 : 1;
+            const colorIdx = (newId - 1) % PRESET_COLORS.length;
+            customItems.push({
+                id: newId,
+                name: `規格-${newId}`,
+                w: 15,
+                h: 15,
+                qty: 50,
+                color: PRESET_COLORS[colorIdx]
+            });
+            renderItemTable();
+            triggerCalculation();
+        }
+
+        // 刪除子料規格
+        function removeItemRow(id) {
+            customItems = customItems.filter(item => item.id !== id);
+            renderItemTable();
+            triggerCalculation();
+        }
+
+        // 修改表格中數值
+        function updateItemField(id, field, value) {
+            const item = customItems.find(i => i.id === id);
+            if (!item) return;
+
+            if (field === 'name') {
+                item.name = value;
+            } else {
+                item[field] = Math.max(1, parseFloat(value) || 1);
+            }
+            triggerCalculation();
+        }
+
+        // 旋轉母板
+        function swapBoardDimensions() {
+            const wInput = document.getElementById('boardW');
+            const hInput = document.getElementById('boardH');
+            const temp = wInput.value;
+            wInput.value = hInput.value;
+            hInput.value = temp;
+            triggerCalculation();
+        }
+
+        // 重置為預設示範清單 (與截圖資料完全對齊)
+        function resetInputsToDemo() {
+            document.getElementById('boardW').value = 400;
+            document.getElementById('boardH').value = 200;
+            document.getElementById('kerf').value = 1.5;
+            customItems = [
+                { id: 1, name: '板件A (長條)', w: 10, h: 20, qty: 100, color: PRESET_COLORS[0] },
+                { id: 2, name: '板件B (中塊)', w: 60, h: 10, qty: 100, color: PRESET_COLORS[1] }
+            ];
+            renderItemTable();
+            triggerCalculation();
+        }
+
+        function triggerCalculation() {
+            const boardW = parseFloat(document.getElementById('boardW').value);
+            const boardH = parseFloat(document.getElementById('boardH').value);
+            const kerf = parseFloat(document.getElementById('kerf').value) || 0;
+
+            const toastError = document.getElementById('error-toast');
+            const toastSuccess = document.getElementById('system-toast');
+
+            // 驗證基本母板尺寸
+            if (isNaN(boardW) || isNaN(boardH) || boardW <= 0 || boardH <= 0 || kerf < 0) {
+                toastError.classList.remove('hidden');
+                document.getElementById('error-toast-msg').innerText = "母板尺寸與刀口損耗必須為正數！";
+                toastSuccess.classList.add('hidden');
+                return;
+            }
+
+            if (customItems.length === 0) {
+                toastError.classList.remove('hidden');
+                document.getElementById('error-toast-msg').innerText = "請至少新增一組成品子料規格！";
+                toastSuccess.classList.add('hidden');
+                return;
+            }
+
+            // 驗證子料是否大於母板
+            const tooBig = customItems.some(item => 
+                (item.w > boardW && item.h > boardW) || (item.w > boardH && item.h > boardH)
+            );
+            if (tooBig) {
+                toastError.classList.remove('hidden');
+                document.getElementById('error-toast-msg').innerText = "偵測到有子料規格之「寬與高皆超過母板邊界」，無法置入！";
+                toastSuccess.classList.add('hidden');
+                return;
+            }
+
+            toastError.classList.add('hidden');
+            toastSuccess.classList.remove('hidden');
+            setTimeout(() => toastSuccess.classList.add('hidden'), 5000);
+
+            // 執行嚴格純十字網格排樣 (1-stage guillotine, 雙向一刀到底)
+            calculatedSolutions = runAllStrictGridStrategies(boardW, boardH, kerf);
+
+            // 去除重複的排樣方案
+            let uniqueSols = [];
+            let seenSigs = new Set();
+            calculatedSolutions.forEach(sol => {
+                const sig = `${sol.primaryAxis}-${sol.total}-${sol.efficiency}-${sol.items.map(it => `${it.x.toFixed(1)},${it.y.toFixed(1)},${it.w},${it.h}`).join('|')}`;
+                if (!seenSigs.has(sig)) {
+                    seenSigs.add(sig);
+                    uniqueSols.push(sol);
+                }
+            });
+            // 按效率降序排列，最優者列為方案一
+            uniqueSols.sort((a, b) => parseFloat(b.efficiency) - parseFloat(a.efficiency));
+            calculatedSolutions = uniqueSols.slice(0, 3);
+            activeSolutionIndex = 0;
+
+            renderTabs();
+            renderActiveSolution();
+        }
+
+        /**
+         * 【嚴格純十字網格 1-Stage Guillotine】
+         * 雙向通切：每橫切從左貫穿到右、每縱切從上貫穿到下，且每個網格儲存格剛好等於某工件尺寸
+         * 候選策略：對每個可能的「統一列高 H」生成一個方案，列高來自工件 w 或 h
+         */
+        function runAllStrictGridStrategies(boardW, boardH, kerf) {
+            const fillMode = document.getElementById('fillMode')?.value || 'maximize';
+            const heightCandidates = new Set();
+            customItems.forEach(s => {
+                heightCandidates.add(s.h);
+                if (s.w !== s.h) heightCandidates.add(s.w);
+            });
+
+            const allSols = [];
+            for (let H of heightCandidates) {
+                // 嘗試橫向主軸（列高 = H）
+                const solH = buildStrictGrid(boardW, boardH, kerf, H, fillMode, 'horizontal');
+                if (solH) allSols.push(solH);
+                // 嘗試縱向主軸（欄寬 = H，轉置處理）
+                const solV = buildStrictGrid(boardH, boardW, kerf, H, fillMode, 'vertical-transposed');
+                if (solV) {
+                    // 將座標轉置回原始方向
+                    solV.items = solV.items.map(it => ({
+                        ...it, x: it.y, y: it.x, w: it.h, h: it.w, rotated: !it.rotated
+                    }));
+                    const oldCols = solV.colWidths;
+                    solV.colWidths = solV.rowHeights;
+                    solV.rowHeights = oldCols;
+                    solV.primaryAxis = 'vertical';
+                    allSols.push(solV);
+                }
+            }
+
+            // 去重
+            const seen = new Set();
+            const uniq = [];
+            allSols.forEach(s => {
+                const sig = `${s.primaryAxis}-${s.colWidths.join(',')}-${s.rowHeights.join(',')}-${s.total}`;
+                if (!seen.has(sig)) { seen.add(sig); uniq.push(s); }
+            });
+
+            // 排序原則：
+            //  1) 涵蓋規格數量越多越優先（避免只覆蓋單一規格的方案排到第一）
+            //  2) 相同覆蓋數時，依母板利用率降序
+            const totalSpecCount = customItems.length;
+            uniq.forEach(s => {
+                s._specsCovered = new Set(s.items.map(it => it.origId)).size;
+            });
+            uniq.sort((a, b) => {
+                if (a._specsCovered !== b._specsCovered) return b._specsCovered - a._specsCovered;
+                return parseFloat(b.efficiency) - parseFloat(a.efficiency);
+            });
+
+            // 標註：若全規格覆蓋方案存在，將部分覆蓋方案調整名稱以示提醒
+            uniq.forEach(s => {
+                if (totalSpecCount > 1 && s._specsCovered < totalSpecCount) {
+                    s.name = s.name.replace(/^純十字網格/, '純十字網格 (僅單一規格)');
+                }
+                delete s._specsCovered;
+            });
+
+            return uniq.slice(0, 3);
+        }
+
+        /**
+         * 用統一列高 H，建構一個嚴格純十字網格方案
+         * 每欄寬必須能在 (W, H) 儲存格擺入某工件（normal 或旋轉），否則該欄不採用
+         */
+        function buildStrictGrid(boardW, boardH, kerf, H, fillMode, axisLabel) {
+            // 收集所有「在 (W, H) 儲存格能完美擺入」的 spec 與朝向
+            // 對每個欄寬 W，記錄能放入的 spec 與朝向
+            const widthToOptions = new Map(); // W -> [{spec, rotated}]
+            customItems.forEach(s => {
+                if (s.h === H) {
+                    if (!widthToOptions.has(s.w)) widthToOptions.set(s.w, []);
+                    widthToOptions.get(s.w).push({ spec: s, rotated: false });
+                }
+                if (s.w !== s.h && s.w === H) {
+                    if (!widthToOptions.has(s.h)) widthToOptions.set(s.h, []);
+                    widthToOptions.get(s.h).push({ spec: s, rotated: true });
+                }
+            });
+
+            if (widthToOptions.size === 0) return null;
+
+            // 計算可放幾列：rowCount*H + (rowCount-1)*kerf <= boardH
+            let rowCount = Math.floor((boardH + kerf) / (H + kerf));
+            while (rowCount > 0 && rowCount * H + (rowCount - 1) * kerf > boardH + 0.001) rowCount--;
+            if (rowCount <= 0) return null;
+
+            // 候選欄寬清單，由大到小
+            const allWidths = Array.from(widthToOptions.keys()).sort((a, b) => b - a);
+
+            // 需求量以使用者輸入的 qty 為基準（兩種 fillMode 皆同）
+            // - demand 模式：Phase 1 後不再填充，嚴格不過量（但因每欄 rowCount 個工件，仍可能微幅過量）
+            // - maximize 模式：Phase 1 後再跑 Phase 2「平衡填充」，過量比例盡量均勻
+            const demand = {};
+            const placedCount = {};
+            customItems.forEach(s => {
+                demand[s.id] = s.qty;
+                placedCount[s.id] = 0;
+            });
+
+            // ===== Phase 1：需求驅動 =====
+            const columns = [];
+            let usedW = 0;
+            let safety = 0;
+            while (safety++ < 500) {
+                let bestW = -1;
+                let bestOpt = null;
+                let bestScore = -Infinity;
+
+                for (let w of allWidths) {
+                    const trialUsed = usedW + (columns.length > 0 ? kerf : 0) + w;
+                    if (trialUsed > boardW + 0.001) continue;
+
+                    const opts = widthToOptions.get(w);
+                    for (let opt of opts) {
+                        const remDemand = demand[opt.spec.id];
+                        if (remDemand <= 0) continue;
+                        const placeCount = Math.min(rowCount, remDemand);
+                        const score = placeCount * w * H + w * 0.001;
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestW = w;
+                            bestOpt = opt;
+                        }
+                    }
+                }
+
+                if (bestW < 0 || !bestOpt) break;
+
+                const xPos = columns.length === 0 ? 0 : usedW + kerf;
+                columns.push({ x: xPos, w: bestW, opt: bestOpt });
+                usedW = xPos + bestW;
+                placedCount[bestOpt.spec.id] += rowCount;
+                demand[bestOpt.spec.id] = Math.max(0, demand[bestOpt.spec.id] - rowCount);
+            }
+
+            // ===== Phase 2：平衡填充（僅 maximize 模式）=====
+            // 評分原則：完成率（placedCount/qty）越低越優先 → 確保兩規格過量比例均勻
+            //          相同完成率時再看面積/寬度（次要）
+            if (fillMode === 'maximize') {
+                safety = 0;
+                while (safety++ < 500) {
+                    let bestW = -1;
+                    let bestOpt = null;
+                    let bestScore = -Infinity;
+                    for (let w of allWidths) {
+                        const trialUsed = usedW + (columns.length > 0 ? kerf : 0) + w;
+                        if (trialUsed > boardW + 0.001) continue;
+                        const opts = widthToOptions.get(w);
+                        for (let opt of opts) {
+                            const placed = placedCount[opt.spec.id] || 0;
+                            const qty = Math.max(1, opt.spec.qty);
+                            const ratio = placed / qty; // 完成率（>1 = 過量）
+                            // 主項：-ratio * 1e6 → ratio 越小越優先
+                            // 次項：依面積與寬度微調
+                            const score = -ratio * 1e6 + rowCount * w * H * 0.01 + w * 0.001;
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestW = w;
+                                bestOpt = opt;
+                            }
+                        }
+                    }
+                    if (bestW < 0 || !bestOpt) break;
+                    const xPos = columns.length === 0 ? 0 : usedW + kerf;
+                    columns.push({ x: xPos, w: bestW, opt: bestOpt });
+                    usedW = xPos + bestW;
+                    placedCount[bestOpt.spec.id] += rowCount;
+                }
+            }
+
+            if (columns.length === 0) return null;
+
+            // 同類聚集：依「寬度由大到小、再依 spec id」排序，使相同規格的欄相鄰
+            // 轉置後即原座標上同類工件的水平帶會集中在一起，不會 A、B 交錯出現
+            columns.sort((a, b) => {
+                if (a.w !== b.w) return b.w - a.w;
+                return a.opt.spec.id - b.opt.spec.id;
+            });
+            // 重算 x 座標
+            {
+                let xCursor = 0;
+                columns.forEach((col, i) => {
+                    col.x = xCursor;
+                    xCursor += col.w + kerf;
+                });
+            }
+
+            // 落地所有工件
+            const items = [];
+            columns.forEach(col => {
+                for (let r = 0; r < rowCount; r++) {
+                    items.push({
+                        origId: col.opt.spec.id,
+                        name: col.opt.spec.name,
+                        x: col.x,
+                        y: r * (H + kerf),
+                        w: col.w,
+                        h: H,
+                        rotated: col.opt.rotated,
+                        color: col.opt.spec.color
+                    });
+                }
+            });
+
+            const colWidths = columns.map(c => c.w);
+            const rowHeights = new Array(rowCount).fill(H);
+
+            // 統計
+            const boardArea = boardW * boardH;
+            const packedArea = items.reduce((s, it) => s + it.w * it.h, 0);
+            const efficiency = ((packedArea / boardArea) * 100).toFixed(2);
+
+            // 通刀數：純網格下，所有切線一刀貫穿。橫切數 = rowCount-1 + (底部修齊?) ; 縱切數 = columns.length-1 + (右邊修齊?)
+            const lastRowBottom = rowCount * H + (rowCount - 1) * kerf;
+            const hCuts = Math.max(0, rowCount - 1) + (lastRowBottom < boardH - 0.01 ? 1 : 0);
+            const lastColRight = columns[columns.length - 1].x + columns[columns.length - 1].w;
+            const vCuts = Math.max(0, columns.length - 1) + (lastColRight < boardW - 0.01 ? 1 : 0);
+
+            // Kerf 損耗計算（網格下橫縱切線交叉，扣除重複面積）
+            const kerfArea = (hCuts * kerf * boardW) + (vCuts * kerf * boardH) - (hCuts * vCuts * kerf * kerf);
+            const kerfPercent = Math.min(100 - parseFloat(efficiency), (kerfArea / boardArea) * 100).toFixed(1);
+            const wastePercent = Math.max(0, 100 - parseFloat(efficiency) - parseFloat(kerfPercent)).toFixed(1);
+
+            // 方案名稱與描述
+            const primaryAxis = axisLabel === 'vertical-transposed' ? 'vertical' : 'horizontal';
+            const name = primaryAxis === 'horizontal'
+                ? `純十字網格 (列高 ${H}mm) 📐`
+                : `純十字網格 (欄寬 ${H}mm) 📏`;
+            const desc = primaryAxis === 'horizontal'
+                ? `嚴格 1-Stage Guillotine：所有橫切每刀從左貫穿到右、所有縱切每刀從上貫穿到下。每個網格儲存格 = 一個工件，零陷阱廢料。本方案統一列高 ${H}mm，混合欄寬 [${colWidths.join(', ')}]mm。`
+                : `嚴格 1-Stage Guillotine：縱橫切均一刀貫穿。本方案統一欄寬 ${H}mm，混合列高 [${rowHeights.join(', ')}]mm。`;
+
+            return {
+                primaryAxis,
+                strategyCode: `strict-${primaryAxis}-${H}`,
+                name,
+                desc,
+                items,
+                colWidths,
+                rowHeights,
+                total: items.length,
+                efficiency,
+                kerfLossPercent: kerfPercent,
+                wastePercent,
+                hCuts,
+                vCuts
+            };
+        }
+
+        /**
+         * 2-Stage Shelf Guillotine 排樣演算法（業界標準兩階段切割）
+         * primaryAxis:
+         *   'horizontal' = 水平帶。橫切一刀到底，每帶內縱切貫穿該帶。
+         *   'vertical'   = 垂直列。縱切一刀到底，每列內橫切貫穿該列。
+         *   'mixed'      = 自動評估兩者取效率最高。
+         */
+        function runShelfNesting(boardW, boardH, kerf, primaryAxis) {
+            if (primaryAxis === 'mixed') {
+                const a = runShelfNesting(boardW, boardH, kerf, 'horizontal');
+                const b = runShelfNesting(boardW, boardH, kerf, 'vertical');
+                const winner = parseFloat(b.efficiency) > parseFloat(a.efficiency) ? b : a;
+                return {
+                    ...winner,
+                    strategyCode: 'mixed',
+                    name: '混合最優方案 🏆',
+                    desc: `方案三：自動評估水平帶與垂直列兩種策略，採用利用率較高者（本次採用「${winner.primaryAxis === 'horizontal' ? '水平帶' : '垂直列'}」模式，達 ${winner.efficiency}%）。`
+                };
+            }
+
+            if (primaryAxis === 'vertical') {
+                // 將問題座標轉置：把長寬互換做水平帶，再把座標轉回來
+                const r = runShelfNesting(boardH, boardW, kerf, 'horizontal');
+                const transposedItems = r.items.map(it => ({
+                    ...it, x: it.y, y: it.x, w: it.h, h: it.w, rotated: !it.rotated
+                }));
+                const columns = r.shelves.map(s => ({
+                    x: s.y, w: s.h,
+                    items: s.items.map(it => ({
+                        ...it, x: it.y, y: it.x, w: it.h, h: it.w, rotated: !it.rotated
+                    }))
+                }));
+                return {
+                    primaryAxis: 'vertical',
+                    strategyCode: 'vertical',
+                    name: '垂直列 (縱切一刀到底) 📏',
+                    desc: '方案二：以縱向為主切方向。先用「縱向一刀到底」將母板切成若干垂直列，列內再用橫切分割工件。',
+                    items: transposedItems,
+                    shelves: [],
+                    columns: columns,
+                    total: transposedItems.length,
+                    efficiency: r.efficiency,
+                    kerfLossPercent: r.kerfLossPercent,
+                    wastePercent: r.wastePercent,
+                    hCuts: r.vCuts,
+                    vCuts: r.hCuts
+                };
+            }
+
+            // ===== Horizontal Shelf Packing =====
+            const fillMode = document.getElementById('fillMode')?.value || 'maximize';
+            let remaining = {};
+            customItems.forEach(s => {
+                remaining[s.id] = (fillMode === 'maximize') ? 999999 : s.qty;
+            });
+
+            let allItems = [];
+            let shelves = [];
+            let currentY = 0;
+            let guard = 0;
+
+            while (currentY < boardH - 0.001 && guard++ < 500) {
+                const availH = boardH - currentY;
+                const shelf = designOptimalShelf(boardW, availH, kerf, remaining, customItems);
+                if (!shelf || shelf.items.length === 0) break;
+                shelf.items.forEach(it => {
+                    it.y += currentY;
+                    allItems.push(it);
+                    remaining[it.origId] = Math.max(0, (remaining[it.origId] || 0) - 1);
+                });
+                shelves.push({ y: currentY, h: shelf.shelfHeight, items: shelf.items });
+                currentY += shelf.shelfHeight + kerf;
+            }
+
+            const boardArea = boardW * boardH;
+            const packedArea = allItems.reduce((s, it) => s + it.w * it.h, 0);
+            const efficiency = ((packedArea / boardArea) * 100).toFixed(2);
+
+            // 橫切數：shelf 之間切線數，再加上「最後一條到母板底之間」若還有未填區，須一刀修齊
+            const last = shelves[shelves.length - 1];
+            const lastEnd = last ? last.y + last.h : 0;
+            const hCuts = Math.max(0, shelves.length - 1) + (lastEnd < boardH - 0.01 ? 1 : 0);
+
+            // 縱切數：每條 shelf 內工件之間切線數，若該帶寬未填滿到 boardW 也加一刀修齊
+            let vCuts = 0;
+            let kerfArea = 0;
+            shelves.forEach(sh => {
+                const lastIt = sh.items[sh.items.length - 1];
+                const shelfFilled = lastIt ? lastIt.x + lastIt.w : 0;
+                const innerCuts = Math.max(0, sh.items.length - 1) + (shelfFilled < boardW - 0.01 ? 1 : 0);
+                vCuts += innerCuts;
+                if (kerf > 0) kerfArea += innerCuts * sh.h * kerf;
+            });
+            if (kerf > 0) kerfArea += hCuts * boardW * kerf;
+
+            const kerfPercent = Math.min(100 - parseFloat(efficiency), (kerfArea / boardArea) * 100).toFixed(1);
+            const wastePercent = Math.max(0, 100 - parseFloat(efficiency) - parseFloat(kerfPercent)).toFixed(1);
+
+            return {
+                primaryAxis: 'horizontal',
+                strategyCode: 'horizontal',
+                name: '水平帶 (橫切一刀到底) 📐',
+                desc: '方案一：以橫向為主切方向。先用「橫向一刀到底」將母板切成若干水平帶，每條帶內再用縱切分割工件，最大化排版緊密度。',
+                items: allItems,
+                shelves: shelves,
+                columns: [],
+                total: allItems.length,
+                efficiency: efficiency,
+                kerfLossPercent: kerfPercent,
+                wastePercent: wastePercent,
+                hCuts: hCuts,
+                vCuts: vCuts
+            };
+        }
+
+        /**
+         * 為「下一條 shelf」找出最佳高度與填入內容
+         */
+        function designOptimalShelf(boardW, availH, kerf, remaining, specs) {
+            let candidateHeights = new Set();
+            specs.forEach(s => {
+                if (remaining[s.id] > 0) {
+                    if (s.h <= availH) candidateHeights.add(s.h);
+                    if (s.w <= availH) candidateHeights.add(s.w);
+                }
+            });
+
+            let best = null;
+            let bestArea = -1;
+            for (let h of candidateHeights) {
+                const remCopy = { ...remaining };
+                const filled = fillShelfWithHeight(boardW, h, kerf, remCopy, specs);
+                const area = filled.items.reduce((s, it) => s + it.w * it.h, 0);
+                if (area > bestArea) {
+                    bestArea = area;
+                    best = filled;
+                }
+            }
+            return best;
+        }
+
+        /**
+         * 給定 shelf 高度，貪心填入工件
+         * 【嚴格 Guillotine】：只允許「高度精確等於 shelfH」的工件進入該帶。
+         * 禁止 partial fit — 否則高度不足的小件會與上方廢料黏成不可分離的長條。
+         */
+        function fillShelfWithHeight(boardW, shelfH, kerf, remaining, specs) {
+            const candidates = [];
+            for (let spec of specs) {
+                if (remaining[spec.id] <= 0) continue;
+                if (spec.h === shelfH) {
+                    candidates.push({ spec, w: spec.w, h: spec.h, rotated: false });
+                }
+                if (spec.w !== spec.h && spec.w === shelfH) {
+                    candidates.push({ spec, w: spec.h, h: spec.w, rotated: true });
+                }
+            }
+
+            // 寬度由大至小排序，先放大件以提高剩餘空間利用率
+            candidates.sort((a, b) => b.w - a.w);
+
+            const placed = [];
+            let usedW = 0;
+            let progress = true;
+            while (progress) {
+                progress = false;
+                // 在當前剩餘寬度中，挑選能塞進且寬度最大者
+                let chosen = null;
+                let chosenIdx = -1;
+                for (let i = 0; i < candidates.length; i++) {
+                    const c = candidates[i];
+                    if (remaining[c.spec.id] <= 0) continue;
+                    const xPos = placed.length === 0 ? 0 : usedW + kerf;
+                    if (xPos + c.w <= boardW + 0.001) {
+                        chosen = c;
+                        chosenIdx = i;
+                        break; // 已經按寬度降序，第一個能塞的就是最大的
+                    }
+                }
+                if (chosen) {
+                    const xPos = placed.length === 0 ? 0 : usedW + kerf;
+                    placed.push({
+                        origId: chosen.spec.id,
+                        name: chosen.spec.name,
+                        x: xPos, y: 0,
+                        w: chosen.w, h: chosen.h,
+                        rotated: chosen.rotated,
+                        color: chosen.spec.color
+                    });
+                    usedW = xPos + chosen.w;
+                    remaining[chosen.spec.id]--;
+                    progress = true;
+                }
+            }
+
+            return { shelfHeight: shelfH, items: placed };
+        }
+
+        // === 以下保留為舊版相容空殼（已不使用，但保留以防其他地方呼叫）===
+        function _legacyUnused_runPureGridNesting(boardW, boardH, kerf, strategy) {
+            // 1. 蒐集所有候選尺寸
+            let dimensions = [];
+            customItems.forEach(item => {
+                dimensions.push(item.w);
+                dimensions.push(item.h);
+            });
+            dimensions = [...new Set(dimensions)].sort((a, b) => b - a); // 降序排序
+
+            // 2. 依據策略與需求權重產生一刀到底的橫向切片高度與縱向切片寬度
+            let colWidths = [];
+            let rowHeights = [];
+
+            if (strategy === 'balanced') {
+                colWidths = generateLineLayout(boardW, kerf, dimensions, 'mix');
+                rowHeights = generateLineLayout(boardH, kerf, dimensions, 'mix');
+            } else if (strategy === 'col_major') {
+                // 縱向對齊：強制使用規格-1的主尺寸
+                colWidths = generateLineLayout(boardW, kerf, dimensions, 'uniform_1');
+                rowHeights = generateLineLayout(boardH, kerf, dimensions, 'mix');
+            } else if (strategy === 'row_major') {
+                // 橫向對齊：強制使用規格-1的主尺寸
+                colWidths = generateLineLayout(boardW, kerf, dimensions, 'mix');
+                rowHeights = generateLineLayout(boardH, kerf, dimensions, 'uniform_1');
+            }
+
+            // 【核心優化一】：將通切長度降序排序，使相同規格的工件集中在一起（聚類排樣），完全與廢料徹底分開！
+            colWidths.sort((a, b) => b - a);
+            rowHeights.sort((a, b) => b - a);
+
+            // 3. 執行網格填補並智慧匹配工件
+            const gridResult = solveGridFill(boardW, boardH, kerf, colWidths, rowHeights, customItems);
+
+            // 4. 計算綜合材料指標
+            const boardArea = boardW * boardH;
+            const totalPackedArea = gridResult.items.reduce((sum, item) => sum + (item.w * item.h), 0);
+            const efficiency = ((totalPackedArea / boardArea) * 100).toFixed(2);
+
+            // 精確統計刀口損耗面積 (因切線完全橫越母板，故計算非常直觀)
+            // 統計實際發生的物理開料通刀數（不計母板原廠四邊）
+            let hCuts = 0;
+            let accumH = 0;
+            rowHeights.forEach(h => {
+                accumH += h;
+                if (accumH < boardH - 0.01) hCuts++;
+                accumH += kerf;
+            });
+
+            let vCuts = 0;
+            let accumW = 0;
+            colWidths.forEach(w => {
+                accumW += w;
+                if (accumW < boardW - 0.01) vCuts++;
+                accumW += kerf;
+            });
+
+            const totalKerfArea = (hCuts * kerf * boardW) + (vCuts * kerf * boardH) - (hCuts * vCuts * kerf * kerf);
+            
+            const kerfPercent = Math.min(100 - parseFloat(efficiency), ((totalKerfArea / boardArea) * 100)).toFixed(1);
+            const wastePercent = Math.max(0, 100 - parseFloat(efficiency) - parseFloat(kerfPercent)).toFixed(1);
+
+            let strategyName = '多規格十字複合網格 📊';
+            let strategyDesc = '方案一：最優十字通切網格。智慧混合行與列，使鋸片不論在水平或垂直向均能一刀直切到底，完全無需接刀與盲切。';
+
+            if (strategy === 'col_major') {
+                strategyName = '縱向主導對齊網格 🚀';
+                strategyDesc = '方案二：縱向優先對齊通切。強制縱向刀口寬度一致，橫向則依據成品需求調整，極大化寬邊成品的排版緊密度。';
+            } else if (strategy === 'row_major') {
+                strategyName = '橫向主導對齊網格 🧩';
+                strategyDesc = '方案三：橫向優先對齊通切。強制橫切高度一致，在剪床或板料分條機上能實現極高效率的流水線通刀作業。';
+            }
+
+            return {
+                strategyCode: strategy,
+                name: strategyName,
+                desc: strategyDesc,
+                items: gridResult.items,
+                colWidths: colWidths,
+                rowHeights: rowHeights,
+                colLefts: gridResult.colLefts,
+                rowTops: gridResult.rowTops,
+                total: gridResult.items.length,
+                efficiency: efficiency,
+                kerfLossPercent: kerfPercent,
+                wastePercent: wastePercent
+            };
+        }
+
+        /**
+         * 智慧型單軸一刀到底切片產生器 (Greedy Grid Partition Generator)
+         */
+        function generateLineLayout(targetLength, kerf, dimensions, mode) {
+            let layout = [];
+            let currentSum = 0;
+
+            if (mode === 'uniform_1' && dimensions.length > 0) {
+                // 使用主規格尺寸
+                let d = dimensions[0];
+                while (currentSum + d <= targetLength) {
+                    layout.push(d);
+                    currentSum += d + kerf;
+                }
+            } else {
+                // 智慧混合 (Mix)：根據各規格件數權重與尺寸進行填補
+                let weights = {};
+                customItems.forEach(item => {
+                    weights[item.w] = (weights[item.w] || 0) + item.qty;
+                    weights[item.h] = (weights[item.h] || 0) + item.qty;
+                });
+
+                while (true) {
+                    let bestD = -1;
+                    let maxW = -1;
+
+                    for (let d of dimensions) {
+                        if (currentSum + d <= targetLength) {
+                            let w = weights[d] || 0;
+                            if (w > maxW) {
+                                maxW = w;
+                                bestD = d;
+                            }
+                        }
+                    }
+
+                    if (bestD === -1) break;
+                    layout.push(bestD);
+                    currentSum += bestD + kerf;
+
+                    // 降低權重，鼓勵產生其他尺寸使網格具多樣性
+                    weights[bestD] = Math.max(0, (weights[bestD] || 0) - 10);
+                }
+            }
+            return layout;
+        }
+
+        /**
+         * 十字網格填充演算法 (Perfect-Fit 修正版：徹底防止縱向橘線/橫向紅線切碎大板件)
+         */
+        function solveGridFill(boardW, boardH, kerf, colWidths, rowHeights, specs) {
+            let packedItems = [];
+            
+            // 複製並追踪各子料剩餘需求數
+            let demands = {};
+            specs.forEach(s => {
+                demands[s.id] = s.qty;
+            });
+
+            // 計算網格的起點坐標 (一刀到底)
+            let colLefts = [];
+            let curX = 0;
+            for (let w of colWidths) {
+                colLefts.push(curX);
+                curX += w + kerf;
+            }
+
+            let rowTops = [];
+            let curY = 0;
+            for (let h of rowHeights) {
+                rowTops.push(curY);
+                curY += h + kerf;
+            }
+
+            // 逐格遍歷填充 (Rows x Cols)
+            for (let c = 0; c < colWidths.length; c++) {
+                let cellW = colWidths[c];
+                let cellX = colLefts[c];
+
+                for (let r = 0; r < rowHeights.length; r++) {
+                    let cellH = rowHeights[r];
+                    let cellY = rowTops[r];
+
+                    let bestSpec = null;
+                    let bestWaste = Infinity;
+                    let bestRotated = false;
+
+                    // A 輪：優先填塞還有需求數量的工件
+                    for (let spec of specs) {
+                        if (demands[spec.id] <= 0) continue;
+
+                        // 【核心修正二】：必須 100% 完美匹配單元格尺寸！
+                        // 唯有當單元格尺寸與工件的尺寸完全一致時，才可以擺放。
+                        // 這徹底根絕了大尺寸工件（如 60x10）在橫穿過多個 10mm 小欄位時，被橘色縱向通刀線（✂️V）切碎的物理悲劇！
+                        let matchNormal = (spec.w === cellW && spec.h === cellH);
+                        let matchRotated = (spec.h === cellW && spec.w === cellH);
+
+                        if (matchNormal || matchRotated) {
+                            let waste = (cellW * cellH) - (spec.w * spec.h);
+                            if (waste < bestWaste) {
+                                bestWaste = waste;
+                                bestSpec = spec;
+                                bestRotated = matchRotated;
+                            }
+                        }
+                    }
+
+                    // B 輪：如果極限填充模式開啟 (不限數量塞滿)，填塞溢出的工件
+                    const fillMode = document.getElementById('fillMode')?.value || 'maximize';
+                    if (!bestSpec && fillMode === 'maximize') {
+                        for (let spec of specs) {
+                            let matchNormal = (spec.w === cellW && spec.h === cellH);
+                            let matchRotated = (spec.h === cellW && spec.w === cellH);
+
+                            if (matchNormal || matchRotated) {
+                                let waste = (cellW * cellH) - (spec.w * spec.h);
+                                if (waste < bestWaste) {
+                                    bestWaste = waste;
+                                    bestSpec = spec;
+                                    bestRotated = matchRotated;
+                                }
+                            }
+                        }
+                    }
+
+                    // 記錄擺放結果
+                    if (bestSpec) {
+                        packedItems.push({
+                            origId: bestSpec.id,
+                            name: bestSpec.name,
+                            x: cellX,
+                            y: cellY,
+                            w: bestRotated ? bestSpec.h : bestSpec.w,
+                            h: bestRotated ? bestSpec.w : bestSpec.h,
+                            rotated: bestRotated,
+                            color: bestSpec.color
+                        });
+                        // 扣減需求量
+                        demands[bestSpec.id] = Math.max(0, demands[bestSpec.id] - 1);
+                    }
+                }
+            }
+
+            return {
+                items: packedItems,
+                colLefts: colLefts,
+                rowTops: rowTops
+            };
+        }
+
+        function renderTabs() {
+            const container = document.getElementById('solution-tabs-container');
+            container.innerHTML = "";
+
+            if (calculatedSolutions.length === 0) {
+                container.innerHTML = `<span class="text-xs text-rose-500">無可行裁切方案</span>`;
+                return;
+            }
+
+            calculatedSolutions.forEach((sol, idx) => {
+                const btn = document.createElement('button');
+                btn.type = "button";
+                btn.className = `px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all active:scale-95 flex flex-col items-center gap-0.5 border ${
+                    idx === activeSolutionIndex 
+                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-lg shadow-cyan-500/20' 
+                    : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:bg-slate-850'
+                }`;
+                
+                const badge = idx === 0 ? `<span class="text-[9px] px-1 bg-slate-950/20 text-slate-950 rounded">推薦最優</span>` : '';
+                
+                btn.innerHTML = `
+                    ${badge}
+                    <span>${sol.name}</span>
+                    <span class="text-[10px] opacity-80">裁出 ${sol.total} 個 (${sol.efficiency}%)</span>
+                `;
+                btn.onclick = () => {
+                    activeSolutionIndex = idx;
+                    renderTabs();
+                    renderActiveSolution();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function renderActiveSolution() {
+            if (calculatedSolutions.length === 0) return;
+
+            const sol = calculatedSolutions[activeSolutionIndex];
+            const boardW = parseFloat(document.getElementById('boardW').value);
+            const boardH = parseFloat(document.getElementById('boardH').value);
+            const kerf = parseFloat(document.getElementById('kerf').value) || 0;
+
+            // 1. 更新戰術看板數據
+            document.getElementById('stat-total-pieces').innerText = sol.total;
+            document.getElementById('stat-efficiency').innerText = `${sol.efficiency}%`;
+            document.getElementById('stat-loss').innerText = `${sol.kerfLossPercent}%`;
+            document.getElementById('stat-waste').innerText = `${sol.wastePercent}%`;
+
+            const m2Board = ((boardW * boardH) / 1000000).toFixed(4);
+            const m2Items = (sol.items.reduce((sum, item) => sum + (item.w * item.h), 0) / 1000000).toFixed(4);
+            document.getElementById('stat-area-details').innerText = `${m2Items} / ${m2Board} m²`;
+
+            const kerfArea = ((boardW * boardH) * (parseFloat(sol.kerfLossPercent) / 100)).toFixed(0);
+            document.getElementById('stat-loss-details').innerText = `${kerfArea} mm² 鋸屑`;
+
+            document.getElementById('active-solution-name').innerText = sol.name;
+            document.getElementById('active-solution-desc').innerText = sol.desc;
+
+            // 2. 統計多規格達成率
+            const breakdownContainer = document.getElementById('production-breakdown-container');
+            breakdownContainer.innerHTML = "";
+
+            customItems.forEach(itemSpec => {
+                const achievedQty = sol.items.filter(it => it.origId === itemSpec.id).length;
+                const percent = Math.min(100, Math.round((achievedQty / itemSpec.qty) * 100));
+
+                const progressWrapper = document.createElement('div');
+                progressWrapper.className = "bg-slate-900 border border-slate-800 p-2.5 rounded-lg flex flex-col gap-1 text-xs";
+                progressWrapper.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-1.5 font-bold">
+                            <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${itemSpec.color.bg};"></span>
+                            <span>${itemSpec.name}</span>
+                        </div>
+                        <span class="text-slate-400 font-mono">${achievedQty} / ${itemSpec.qty} <span class="text-[10px]">pcs</span></span>
+                    </div>
+                    <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden mt-1">
+                        <div class="h-full rounded-full transition-all duration-500" style="width: ${percent}%; background-color: ${itemSpec.color.bg};"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                        <span>尺寸: ${itemSpec.w} × ${itemSpec.h} mm</span>
+                        <span class="font-bold" style="color: ${itemSpec.color.bg};">達成率 ${percent}%</span>
+                    </div>
+                `;
+                breakdownContainer.appendChild(progressWrapper);
+            });
+
+            // Shelf Guillotine 通刀數直接讀取演算法輸出
+            document.getElementById('stat-h-cuts').innerText = `${sol.hCuts || 0} 刀`;
+            document.getElementById('stat-v-cuts').innerText = `${sol.vCuts || 0} 刀`;
+            document.getElementById('stat-prod-qty').innerText = `${sol.total} 個`;
+
+            // 各子料尺寸 / 名稱 / 數量明細
+            const breakdownEl = document.getElementById('stat-prod-breakdown');
+            breakdownEl.innerHTML = '';
+            customItems.forEach(spec => {
+                const cnt = sol.items.filter(it => it.origId === spec.id).length;
+                if (cnt === 0) return;
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-1.5 text-slate-300';
+                row.innerHTML = `
+                    <span class="inline-block w-2 h-2 rounded-full shrink-0" style="background-color: ${spec.color.bg};"></span>
+                    <span class="truncate">${spec.name}</span>
+                    <span class="text-slate-500 shrink-0">${spec.w}×${spec.h}</span>
+                    <span class="ml-auto font-bold text-emerald-400 shrink-0">${cnt}</span>
+                `;
+                breakdownEl.appendChild(row);
+            });
+
+            // 4. 繪製 CAD SVG 畫布
+            buildSVGCanvas(boardW, boardH, kerf, sol);
+        }
+
+        /**
+         * 更新全域 SVG 縮放平移 Matrix
+         */
+        function updateSVGTransform() {
+            const layer = document.getElementById('zoom-pan-layer');
+            if (layer) {
+                layer.setAttribute('transform', `translate(${svgTranslateX}, ${svgTranslateY}) scale(${svgScale})`);
+            }
+        }
+
+        function adjustZoom(factor) {
+            const svgEl = document.getElementById('layout-svg');
+            if (!svgEl) return;
+            
+            const rect = svgEl.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+
+            const xs = (centerX - svgTranslateX) / svgScale;
+            const ys = (centerY - svgTranslateY) / svgScale;
+
+            svgScale *= factor;
+            svgScale = Math.max(0.4, Math.min(svgScale, 15));
+
+            svgTranslateX = centerX - xs * svgScale;
+            svgTranslateY = centerY - ys * svgScale;
+
+            updateSVGTransform();
+        }
+
+        function resetZoomAndPan() {
+            svgScale = 1;
+            svgTranslateX = 0;
+            svgTranslateY = 0;
+            updateSVGTransform();
+        }
+
+        /**
+         * 繪製高精度 CAD 鋸切圖紙
+         */
+        function buildSVGCanvas(boardW, boardH, kerf, sol) {
+            const wrapper = document.getElementById('svg-canvas-wrapper');
+            wrapper.innerHTML = "";
+
+            // 將邊界間距（padding）自 45 提高到 55，確保外側尺規文字與輔助線有足夠的安全空間
+            const padding = 55;
+            const viewW = boardW + padding * 2;
+            const viewH = boardH + padding * 2;
+            const items = sol.items;
+
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("viewBox", `0 0 ${viewW} ${viewH}`);
+            svg.setAttribute("class", "w-full h-auto max-h-[500px] select-none rounded");
+            svg.setAttribute("id", "layout-svg");
+            svg.style.cursor = 'grab';
+
+            const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+            defs.innerHTML = `
+                <pattern id="diagonal-stripes" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                    <line x1="0" y1="0" x2="0" y2="10" stroke="#334155" stroke-width="3" />
+                </pattern>
+                <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+                    <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000" flood-opacity="0.3" />
+                </filter>
+            `;
+            svg.appendChild(defs);
+
+            const zoomPanLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            zoomPanLayer.setAttribute("id", "zoom-pan-layer");
+            zoomPanLayer.setAttribute("transform", "translate(0, 0) scale(1)");
+            svg.appendChild(zoomPanLayer);
+
+            svgScale = 1;
+            svgTranslateX = 0;
+            svgTranslateY = 0;
+
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            g.setAttribute("transform", `translate(${padding}, ${padding})`);
+            zoomPanLayer.appendChild(g);
+
+            // 1. 原料板材背景（斜紋廢料區）
+            const backgroundBoard = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            backgroundBoard.setAttribute("x", "0");
+            backgroundBoard.setAttribute("y", "0");
+            backgroundBoard.setAttribute("width", boardW);
+            backgroundBoard.setAttribute("height", boardH);
+            backgroundBoard.setAttribute("fill", "url(#diagonal-stripes)");
+            backgroundBoard.setAttribute("stroke", "#475569");
+            backgroundBoard.setAttribute("stroke-width", "2");
+            backgroundBoard.setAttribute("filter", "url(#shadow)");
+            g.appendChild(backgroundBoard);
+
+            // 2. 繪製工件矩形
+            items.forEach((item, index) => {
+                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                rect.setAttribute("class", "piece-rect");
+                rect.setAttribute("x", item.x);
+                rect.setAttribute("y", item.y);
+                rect.setAttribute("width", item.w);
+                rect.setAttribute("height", item.h);
+                rect.setAttribute("fill", item.color.bg); 
+                rect.setAttribute("stroke", item.color.stroke);
+                rect.setAttribute("stroke-width", "0.8");
+                rect.setAttribute("rx", "1.5");
+
+                rect.addEventListener('mouseenter', (e) => showTooltip(e, item, index));
+                rect.addEventListener('mousemove', (e) => moveTooltip(e));
+                rect.addEventListener('mouseleave', () => hideTooltip());
+
+                g.appendChild(rect);
+
+                // 標註編號
+                if (item.w >= 10 && item.h >= 10) {
+                    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text.setAttribute("x", item.x + item.w / 2);
+                    text.setAttribute("y", item.y + item.h / 2 + 2.5);
+                    text.setAttribute("fill", item.color.text);
+                    text.setAttribute("font-size", item.w < 15 ? "5px" : "7px");
+                    text.setAttribute("font-weight", "black");
+                    text.setAttribute("text-anchor", "middle");
+                    text.setAttribute("pointer-events", "none");
+                    text.textContent = index + 1;
+                    g.appendChild(text);
+                }
+            });
+
+            // ====== 嚴格純十字網格切線繪製（雙向一刀到底） ======
+            // 先收集所有要繪製的橫切 / 縱切位置，計算間距以決定字體與標籤錯位策略
+            const hCutYs = [];
+            {
+                let accumH = 0;
+                (sol.rowHeights || []).forEach((rh, i) => {
+                    accumH += rh;
+                    const isLast = (i === sol.rowHeights.length - 1);
+                    const needCut = (accumH < boardH - 0.01);
+                    if (!isLast || needCut) hCutYs.push(accumH);
+                    accumH += kerf;
+                });
+            }
+            const vCutXs = [];
+            {
+                let accumW = 0;
+                (sol.colWidths || []).forEach((cw, i) => {
+                    accumW += cw;
+                    const isLast = (i === sol.colWidths.length - 1);
+                    const needCut = (accumW < boardW - 0.01);
+                    if (!isLast || needCut) vCutXs.push(accumW);
+                    accumW += kerf;
+                });
+            }
+
+            // 依密度決定字體與錯位行數（spacing < threshold 時啟用 zigzag 與較小字體）
+            const minHSpacing = hCutYs.length > 1 ? Math.min(...hCutYs.slice(1).map((y, i) => y - hCutYs[i])) : 999;
+            const minVSpacing = vCutXs.length > 1 ? Math.min(...vCutXs.slice(1).map((x, i) => x - vCutXs[i])) : 999;
+            const hFontSize = minHSpacing < 8 ? 4 : (minHSpacing < 12 ? 5 : 7);
+            const vFontSize = minVSpacing < 8 ? 4 : (minVSpacing < 12 ? 5 : 7);
+            const hZigzag = minHSpacing < 12 ? Math.max(1, Math.ceil(8 / minHSpacing)) : 1; // 幾個一組錯位
+            const vZigzag = minVSpacing < 12 ? Math.max(1, Math.ceil(8 / minVSpacing)) : 1;
+
+            // 橫切：紅線一刀貫穿，標籤在板左側外，依 hZigzag 階梯錯位避免重疊
+            hCutYs.forEach((accumH, idx) => {
+                const drawnH = idx + 1;
+
+                // 鋸縫
+                const hCut = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                hCut.setAttribute("x", "0");
+                hCut.setAttribute("y", accumH);
+                hCut.setAttribute("width", boardW);
+                hCut.setAttribute("height", kerf > 0 ? kerf : "1");
+                hCut.setAttribute("fill", "#ef4444");
+                hCut.setAttribute("opacity", "0.75");
+                g.appendChild(hCut);
+
+                // 階梯錯位：idx % hZigzag 決定該標籤位於哪一階
+                const tier = idx % hZigzag;
+                const labelOffset = -10 - tier * 14;  // -10, -24, -38 ...
+                const dashEnd = labelOffset + 4;       // 引線終點
+
+                // 引線（從板邊延伸到標籤）
+                const dashLeft = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                dashLeft.setAttribute("x1", dashEnd);
+                dashLeft.setAttribute("y1", accumH + (kerf / 2));
+                dashLeft.setAttribute("x2", "0");
+                dashLeft.setAttribute("y2", accumH + (kerf / 2));
+                dashLeft.setAttribute("stroke", "#ef4444");
+                dashLeft.setAttribute("stroke-width", "0.5");
+                dashLeft.setAttribute("stroke-dasharray", "2,2");
+                dashLeft.setAttribute("opacity", "0.6");
+                g.appendChild(dashLeft);
+
+                // 標籤
+                const txtLeft = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                txtLeft.setAttribute("x", labelOffset);
+                txtLeft.setAttribute("y", accumH + (kerf / 2) + hFontSize * 0.35);
+                txtLeft.setAttribute("fill", "#ef4444");
+                txtLeft.setAttribute("font-size", `${hFontSize}px`);
+                txtLeft.setAttribute("font-weight", "bold");
+                txtLeft.setAttribute("text-anchor", "end");
+                txtLeft.setAttribute("font-family", "monospace");
+                txtLeft.textContent = `H${drawnH}`;
+                g.appendChild(txtLeft);
+            });
+
+            // 縱切：橘線一刀貫穿，標籤在板頂外，依 vZigzag 階梯錯位
+            vCutXs.forEach((accumW, idx) => {
+                const drawnV = idx + 1;
+
+                const vCut = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                vCut.setAttribute("x", accumW);
+                vCut.setAttribute("y", "0");
+                vCut.setAttribute("width", kerf > 0 ? kerf : "1");
+                vCut.setAttribute("height", boardH);
+                vCut.setAttribute("fill", "#f97316");
+                vCut.setAttribute("opacity", "0.75");
+                g.appendChild(vCut);
+
+                const tier = idx % vZigzag;
+                const labelOffset = -22 - tier * 16;  // 越遠的階越上面，整體往外推
+                const dashEnd = labelOffset + 6;
+
+                const dashTop = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                dashTop.setAttribute("x1", accumW + (kerf / 2));
+                dashTop.setAttribute("y1", dashEnd);
+                dashTop.setAttribute("x2", accumW + (kerf / 2));
+                dashTop.setAttribute("y2", "0");
+                dashTop.setAttribute("stroke", "#f97316");
+                dashTop.setAttribute("stroke-width", "0.5");
+                dashTop.setAttribute("stroke-dasharray", "2,2");
+                dashTop.setAttribute("opacity", "0.6");
+                g.appendChild(dashTop);
+
+                const txtTop = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                txtTop.setAttribute("x", accumW + (kerf / 2));
+                txtTop.setAttribute("y", labelOffset);
+                txtTop.setAttribute("fill", "#f97316");
+                txtTop.setAttribute("font-size", `${vFontSize}px`);
+                txtTop.setAttribute("font-weight", "bold");
+                txtTop.setAttribute("text-anchor", "end");
+                txtTop.setAttribute("font-family", "monospace");
+                txtTop.setAttribute("transform", `rotate(-90, ${accumW + (kerf / 2)}, ${labelOffset})`);
+                txtTop.textContent = `V${drawnV}`;
+                g.appendChild(txtTop);
+            });
+
+            // 增加左側 / 頂部的留白範圍，避免階梯標籤被裁切
+            const maxHTier = Math.min(hZigzag - 1, hCutYs.length - 1);
+            const maxVTier = Math.min(vZigzag - 1, vCutXs.length - 1);
+            const _leftPad = 10 + maxHTier * 14 + 6;
+            const _topPad = 10 + maxVTier * 14 + 6;
+
+            // （舊版 Shelf 切線邏輯已移除，純十字網格切線繪製已在上方完成）
+
+            // 4. 雙向尺規標籤 (CAD 網格輔助標記)
+            const rulerColor = "#94a3b8"; 
+            
+            // 寬度尺規：保留在底部 (Bottom)
+            const wLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            wLine.setAttribute("x1", 0); wLine.setAttribute("y1", boardH + 12);
+            wLine.setAttribute("x2", boardW); wLine.setAttribute("y2", boardH + 12);
+            wLine.setAttribute("stroke", rulerColor); wLine.setAttribute("stroke-width", "1");
+            g.appendChild(wLine);
+
+            const wText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            wText.setAttribute("x", boardW / 2); wText.setAttribute("y", boardH + 28);
+            wText.setAttribute("fill", rulerColor); wText.setAttribute("font-size", "11px");
+            wText.setAttribute("font-weight", "bold");
+            wText.setAttribute("text-anchor", "middle");
+            wText.textContent = `母板寬 W: ${boardW} mm`;
+            g.appendChild(wText);
+
+            // 高度尺規移至最右側 (Right)，徹底與左側的剪刀起刀序號 (`✂️ H`) 物理隔離，達成 100% 零遮擋、零重疊
+            const hLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            hLine.setAttribute("x1", boardW + 12); hLine.setAttribute("y1", 0);
+            hLine.setAttribute("x2", boardW + 12); hLine.setAttribute("y2", boardH);
+            hLine.setAttribute("stroke", rulerColor); hLine.setAttribute("stroke-width", "1");
+            g.appendChild(hLine);
+
+            const hText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            hText.setAttribute("x", boardW + 28); hText.setAttribute("y", boardH / 2);
+            hText.setAttribute("fill", rulerColor); hText.setAttribute("font-size", "11px");
+            hText.setAttribute("font-weight", "bold");
+            hText.setAttribute("text-anchor", "middle");
+            // 順時針旋轉 90 度，使其在右側安全區內完美貼合渲染
+            hText.setAttribute("transform", `rotate(90, ${boardW + 28}, ${boardH / 2})`);
+            hText.textContent = `母板高 H: ${boardH} mm`;
+            g.appendChild(hText);
+
+            // ==========================================
+            // 滑鼠滾輪 & 拖曳平移互動控制
+            // ==========================================
+            svg.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const rect = svg.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                const xs = (mouseX - svgTranslateX) / svgScale;
+                const ys = (mouseY - svgTranslateY) / svgScale;
+
+                const zoomFactor = 1.15;
+                if (e.deltaY < 0) {
+                    svgScale *= zoomFactor;
+                } else {
+                    svgScale /= zoomFactor;
+                }
+                
+                svgScale = Math.max(0.4, Math.min(svgScale, 15));
+
+                svgTranslateX = mouseX - xs * svgScale;
+                svgTranslateY = mouseY - ys * svgScale;
+                
+                updateSVGTransform();
+            }, { passive: false });
+
+            let isPanning = false;
+            let startX = 0;
+            let startY = 0;
+
+            svg.addEventListener('mousedown', (e) => {
+                if (e.button === 0) { 
+                    isPanning = true;
+                    startX = e.clientX - svgTranslateX;
+                    startY = e.clientY - svgTranslateY;
+                    svg.style.cursor = 'grabbing';
+                }
+            });
+
+            svg.addEventListener('mousemove', (e) => {
+                if (!isPanning) return;
+                svgTranslateX = e.clientX - startX;
+                svgTranslateY = e.clientY - startY;
+                updateSVGTransform();
+            });
+
+            svg.addEventListener('mouseup', () => {
+                isPanning = false;
+                svg.style.cursor = 'grab';
+            });
+
+            svg.addEventListener('mouseleave', () => {
+                isPanning = false;
+                svg.style.cursor = 'grab';
+            });
+
+            let isTouchPanning = false;
+            let touchStartX = 0;
+            let touchStartY = 0;
+
+            svg.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    isTouchPanning = true;
+                    touchStartX = e.touches[0].clientX - svgTranslateX;
+                    touchStartY = e.touches[0].clientY - svgTranslateY;
+                }
+            }, { passive: true });
+
+            svg.addEventListener('touchmove', (e) => {
+                if (!isTouchPanning || e.touches.length !== 1) return;
+                svgTranslateX = e.touches[0].clientX - touchStartX;
+                svgTranslateY = e.touches[0].clientY - touchStartY;
+                updateSVGTransform();
+            }, { passive: true });
+
+            svg.addEventListener('touchend', () => {
+                isTouchPanning = false;
+            }, { passive: true });
+
+            wrapper.appendChild(svg);
+        }
+
+        // TOOLTIP 滑鼠事件
+        const tooltip = document.getElementById('svg-tooltip');
+        const tipId = document.getElementById('tip-id');
+        const tipCoords = document.getElementById('tip-coords');
+        const tipDim = document.getElementById('tip-dim');
+        const canvasContainer = document.getElementById('canvas-container');
+
+        // 更新後的 Tooltip，改用更精確的「網格對齊坐標」字樣，符合十字貫穿定義
+        function showTooltip(e, item, idx) {
+            tipId.innerHTML = `<span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style="background-color: ${item.color.bg}"></span> ${item.name} (#${idx + 1})`;
+            tipCoords.innerText = `網格起點 X: ${item.x.toFixed(1)} mm, Y: ${item.y.toFixed(1)} mm`;
+            tipDim.innerText = `實際尺寸: ${item.w} × ${item.h} mm  (${item.rotated ? '橫向旋轉' : '原始朝向'})`;
+            tooltip.classList.remove('hidden');
+        }
+
+        function moveTooltip(e) {
+            const rect = canvasContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left + 15;
+            const y = e.clientY - rect.top + 15;
+            tooltip.style.left = `${x}px`;
+            tooltip.style.top = `${y}px`;
+        }
+
+        function hideTooltip() {
+            tooltip.classList.add('hidden');
+        }
+
+        /**
+         * 導出整合了「一刀到底鋸切步驟明細」與「多規格達成單」的 4K 超高解析圖紙
+         */
+        function exportLayoutToPNG() {
+            const svgEl = document.getElementById('layout-svg');
+            if (!svgEl) return;
+
+            const successToast = document.getElementById('system-toast');
+            const prevTitle = successToast.querySelector('.font-bold').innerText;
+            const prevDesc = successToast.querySelector('p').innerText;
+            
+            successToast.querySelector('.font-bold').innerText = "正在進行 4K 超解析度重繪...";
+            successToast.querySelector('p').innerText = "正在將多規格達成清單、完美直通鋸切與一刀到底 CAD 圖紙整合繪製為超清晰大圖。";
+            successToast.classList.remove('hidden');
+
+            const boardW = document.getElementById('boardW').value;
+            const boardH = document.getElementById('boardH').value;
+            const kerf = document.getElementById('kerf').value;
+            const activeSol = calculatedSolutions[activeSolutionIndex];
+            const activeSolName = activeSol.name;
+            
+            const hCutsText = document.getElementById('stat-h-cuts').innerText;
+            const vCutsText = document.getElementById('stat-v-cuts').innerText;
+            const prodQtyText = document.getElementById('stat-prod-qty').innerText;
+
+            // 導出時重設視角以防裁切
+            const savedScale = svgScale;
+            const savedTX = svgTranslateX;
+            const savedTY = svgTranslateY;
+            resetZoomAndPan();
+
+            const serializer = new XMLSerializer();
+            const svgString = serializer.serializeToString(svgEl);
+
+            svgScale = savedScale;
+            svgTranslateX = savedTX;
+            svgTranslateY = savedTY;
+            updateSVGTransform();
+
+            const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const URL = window.URL || window.webkitURL || window;
+            const blobURL = URL.createObjectURL(svgBlob);
+
+            const image = new Image();
+            image.onload = function() {
+                const viewBox = svgEl.viewBox.baseVal;
+                const originalW = viewBox.width || svgEl.width.baseVal.value || 800;
+                const originalH = viewBox.height || svgEl.height.baseVal.value || 600;
+
+                const targetWidth = 3200;
+                const layoutWidth = 3000; 
+                const scaleFactor = layoutWidth / originalW;
+                const layoutHeight = originalH * scaleFactor;
+
+                const headerHeight = 650;
+                const footerPadding = 120;
+                const targetHeight = headerHeight + layoutHeight + footerPadding;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                const context = canvas.getContext('2d');
+
+                context.imageSmoothingEnabled = true;
+                context.imageSmoothingQuality = 'high';
+
+                // 底板 Slate-950 背景
+                context.fillStyle = '#020617';
+                context.fillRect(0, 0, targetWidth, targetHeight);
+
+                // ==========================================
+                // 1. 繪製：標題與基本規格
+                // ==========================================
+                context.textBaseline = 'top';
+                context.fillStyle = '#ffffff';
+                context.font = 'bold 76px system-ui, sans-serif';
+                context.fillText(`多規格一刀到底 (Guillotine) 智慧開料圖紙`, 100, 60);
+
+                context.fillStyle = '#94a3b8';
+                context.font = '38px system-ui, sans-serif';
+                context.fillText(`母板規格: ${boardW} × ${boardH} mm  |  損耗 (Kerf): ${kerf} mm  |  排樣策略: ${activeSolName}`, 100, 155);
+
+                // ==========================================
+                // 2. 繪製：工藝指標卡片面板
+                // ==========================================
+                const cardWidth = 950;
+                const cardHeight = 150;
+                const cardY = 220;
+                const cardGap = 75;
+
+                const cards = [
+                    { label: '橫向通刀數 (橫向一刀到底)', val: hCutsText, color: '#ef4444', x: 100 },
+                    { label: '縱向通刀數 (縱向一刀到底)', val: vCutsText, color: '#f97316', x: 100 + cardWidth + cardGap },
+                    { label: '本方案已裁出總工件數', val: prodQtyText, color: '#34d399', x: 100 + (cardWidth + cardGap) * 2 }
+                ];
+
+                cards.forEach(card => {
+                    context.fillStyle = '#0f172a';
+                    context.strokeStyle = '#334155';
+                    context.lineWidth = 3;
+                    context.beginPath();
+                    context.roundRect(card.x, cardY, cardWidth, cardHeight, 16);
+                    context.fill();
+                    context.stroke();
+
+                    context.fillStyle = '#94a3b8';
+                    context.font = 'bold 28px sans-serif';
+                    context.fillText(card.label, card.x + 40, cardY + 25);
+
+                    context.fillStyle = card.color;
+                    context.font = 'bold 48px sans-serif';
+                    context.fillText(card.val, card.x + 40, cardY + 72);
+                });
+
+                // ==========================================
+                // 3. 繪製：多規格配料達成清單
+                // ==========================================
+                const bomY = 400;
+                context.fillStyle = '#1e293b';
+                context.fillRect(100, bomY, 3000, 180);
+                context.strokeStyle = '#475569';
+                context.lineWidth = 2;
+                context.strokeRect(100, bomY, 3000, 180);
+
+                context.fillStyle = '#ffffff';
+                context.font = 'bold 28px sans-serif';
+                context.fillText('【 生產配料達成統計與工件色彩代碼 】', 140, bomY + 25);
+
+                let itemXOffset = 140;
+                customItems.forEach((item, idx) => {
+                    const achieved = activeSol.items.filter(it => it.origId === item.id).length;
+                    
+                    context.fillStyle = item.color.bg;
+                    context.beginPath();
+                    context.arc(itemXOffset + 15, bomY + 110, 15, 0, 2 * Math.PI);
+                    context.fill();
+
+                    context.fillStyle = '#ffffff';
+                    context.font = 'bold 26px sans-serif';
+                    context.fillText(`${item.name} (${item.w}×${item.h} mm)`, itemXOffset + 45, bomY + 80);
+
+                    context.fillStyle = achieved >= item.qty ? '#34d399' : '#e11d48';
+                    context.font = 'mono bold 30px sans-serif';
+                    context.fillText(`${achieved} / ${item.qty} pcs (${Math.round((achieved/item.qty)*100)}%)`, itemXOffset + 45, bomY + 115);
+
+                    itemXOffset += 650; 
+                });
+
+                // ==========================================
+                // 4. 繪製：CAD 向量排樣圖紙
+                // ==========================================
+                const layoutX = 100;
+                const layoutY = headerHeight + 10;
+                context.drawImage(image, layoutX, layoutY, layoutWidth, layoutHeight);
+
+                // ==========================================
+                // 5. 繪製：頁尾簽字章欄位
+                // ==========================================
+                context.fillStyle = '#475569';
+                context.font = 'bold 28px sans-serif';
+                context.fillText('© 2026 智慧製造板材裁切最優化系統  |  4K 十字通切一刀到底開料藍圖', 100, targetHeight - 60);
+
+                // ==========================================
+                // 執行下載檔案
+                // ==========================================
+                try {
+                    const pngDataUrl = canvas.toDataURL('image/png');
+                    const downloadLink = document.createElement('a');
+                    
+                    const cleanSolName = activeSolName.replace(/[^\w\s\u4e00-\u9fa5]/g, '').trim();
+                    downloadLink.download = `智慧十字一刀到底開料圖紙_${boardW}x${boardH}_${cleanSolName}_4K.png`;
+                    downloadLink.href = pngDataUrl;
+                    
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+
+                    successToast.querySelector('.font-bold').innerText = "4K 整合藍圖匯出成功 📥";
+                    successToast.querySelector('p').innerText = "已成功下載整合了「多規格生產統計、雙向一刀到底通切鋸路、CAD 圖紙」的極清晰開料圖。";
+                    
+                    setTimeout(() => {
+                        successToast.classList.add('hidden');
+                        successToast.querySelector('.font-bold').innerText = prevTitle;
+                        successToast.querySelector('p').innerText = prevDesc;
+                    }, 6000);
+
+                } catch (err) {
+                    console.error("PNG 導出失敗:", err);
+                } finally {
+                    URL.revokeObjectURL(blobURL);
+                }
+            };
+
+            image.src = blobURL;
+        }
+
+        // 複製為 CNC 座標與 G-code / JSON
+        function copyLayoutToClipboard() {
+            if (calculatedSolutions.length === 0) return;
+            const sol = calculatedSolutions[activeSolutionIndex];
+            
+            const exportData = {
+                strategy: sol.name,
+                total_pieces_packed: sol.total,
+                utilization_percent: sol.efficiency,
+                kerf_loss_percent: sol.kerfLossPercent,
+                board_dimensions: {
+                    w: parseFloat(document.getElementById('boardW').value),
+                    h: parseFloat(document.getElementById('boardH').value),
+                    kerf: parseFloat(document.getElementById('kerf').value) || 0
+                },
+                packed_layout: sol.items.map(it => ({
+                    id: it.origId,
+                    name: it.name,
+                    x_offset_mm: parseFloat(it.x.toFixed(2)),
+                    y_offset_mm: parseFloat(it.y.toFixed(2)),
+                    cut_width_mm: it.w,
+                    cut_height_mm: it.h,
+                    is_rotated: it.rotated
+                }))
+            };
+
+            const jsonStr = JSON.stringify(exportData, null, 2);
+            
+            const text_area = document.createElement("textarea");
+            text_area.value = jsonStr;
+            document.body.appendChild(text_area);
+            text_area.select();
+            try {
+                document.execCommand('copy');
+                const successToast = document.getElementById('system-toast');
+                const prevTitle = successToast.querySelector('.font-bold').innerText;
+                const prevDesc = successToast.querySelector('p').innerText;
+                
+                successToast.querySelector('.font-bold').innerText = "座標複製成功！";
+                successToast.querySelector('p').innerText = "已將十字一刀到底嵌套座標 JSON 檔案複製 to 您的剪貼簿中。";
+                successToast.classList.remove('hidden');
+
+                setTimeout(() => {
+                    successToast.classList.add('hidden');
+                    successToast.querySelector('.font-bold').innerText = prevTitle;
+                    successToast.querySelector('p').innerText = prevDesc;
+                }, 4000);
+            } catch (err) {
+                console.error('複製失敗', err);
+            }
+            document.body.removeChild(text_area);
+        }
+    </script>
+</body>
+</html>
